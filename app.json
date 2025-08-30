@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "To-Do",
+    "slug": "snack-80ac69df-5d59-42c9-9775-c6a6ada6d29d",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/TO-DO-IMAGE.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/TO-DO-IMAGE.png"
+    }
+  }
+}
