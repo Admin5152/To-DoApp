@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/TO-DO-IMAGE.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -17,13 +17,19 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/TO-DO-IMAGE.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.scam.ToDo"
     },
     "web": {
       "favicon": "./assets/TO-DO-IMAGE.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a349a093-77bd-4cdd-9adc-e7a2d8aa8aa3"
+      }
     }
   }
 }
