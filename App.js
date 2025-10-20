@@ -1,5 +1,8 @@
 import React, { useState } from "react";
-import { View, Text } from "react-native";
+import { View, Text, Platform } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeScreen from "./screens/HomeScreen";
@@ -36,6 +39,47 @@ export default function App() {
   React.useEffect(() => {
     const initializeApp = async () => {
       try {
+        // Configure global notification handler once
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+          }),
+        });
+
+        // Ask permissions on real devices
+        if (Device.isDevice) {
+          const { status: existingStatus } = await Notifications.getPermissionsAsync();
+          let finalStatus = existingStatus;
+          if (existingStatus !== 'granted') {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+          }
+          // Create Android channel so scheduled notifications actually display
+          if (Platform.OS === 'android') {
+            await Notifications.setNotificationChannelAsync('default', {
+              name: 'Default',
+              importance: Notifications.AndroidImportance.HIGH,
+              sound: appSettings.soundEnabled !== false ? 'default' : undefined,
+              vibrationPattern: appSettings.vibrationEnabled !== false ? [0, 250, 250, 250] : undefined,
+              enableVibrate: appSettings.vibrationEnabled !== false,
+              lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+              bypassDnd: false,
+            });
+          }
+        }
+
+        // Load persisted settings if any
+        const savedSettings = await AsyncStorage.getItem('@app_settings');
+        if (savedSettings) {
+          try {
+            const parsed = JSON.parse(savedSettings);
+            setAppSettings(prev => ({ ...prev, ...parsed }));
+          } catch (e) {
+            // ignore malformed settings
+          }
+        }
         // Add a small delay to ensure everything is ready
         await new Promise(resolve => setTimeout(resolve, 100));
         setIsReady(true);
@@ -47,6 +91,30 @@ export default function App() {
 
     initializeApp();
   }, []);
+
+  // Persist settings when they change (source of truth in root)
+  React.useEffect(() => {
+    const persist = async () => {
+      try {
+        await AsyncStorage.setItem('@app_settings', JSON.stringify(appSettings));
+        if (Platform.OS === 'android') {
+          // Update channel when sound/vibration settings change
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'Default',
+            importance: Notifications.AndroidImportance.HIGH,
+            sound: appSettings.soundEnabled !== false ? 'default' : undefined,
+            vibrationPattern: appSettings.vibrationEnabled !== false ? [0, 250, 250, 250] : undefined,
+            enableVibrate: appSettings.vibrationEnabled !== false,
+            lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+            bypassDnd: false,
+          });
+        }
+      } catch (e) {
+        // ignore persistence errors
+      }
+    };
+    persist();
+  }, [appSettings]);
 
   if (!isReady) {
     return (

@@ -14,6 +14,7 @@ import {
   Alert
 } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { Calendar } from "react-native-calendars";
 import { AntDesign } from "@expo/vector-icons";
 
@@ -101,18 +102,59 @@ export default function CalendarViewScreen({ navigation, tasks: mainTasks, setTa
     }
   };
 
+  const scheduleNotificationForDate = async (taskTitle, dateString, timeString) => {
+    try {
+      if (appSettings?.notifications === false) return null;
+      if (!dateString || !timeString) return null;
+      const [year, month, day] = dateString.split('-').map(Number);
+      const [hours, minutes] = timeString.split(':').map(Number);
+      const triggerDate = new Date(year, month - 1, day, hours, minutes);
+      if (triggerDate <= new Date()) return null;
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '📋 Task Reminder',
+          body: `Don't forget: ${taskTitle}`,
+          sound: appSettings?.soundEnabled !== false,
+          priority: Notifications.AndroidImportance.HIGH,
+        },
+        trigger: { date: triggerDate },
+      });
+      return notificationId;
+    } catch (e) {
+      console.error('Error scheduling calendar notification:', e);
+      return null;
+    }
+  };
+
+  const cancelNotificationIfAny = async (notificationId) => {
+    if (!notificationId) return;
+    try {
+      await Notifications.cancelScheduledNotificationAsync(notificationId);
+    } catch (e) {
+      console.error('Error cancelling calendar notification:', e);
+    }
+  };
+
   const addTaskForDate = async () => {
     if (!newTask.trim() || !selectedDate) return;
     
     const updatedTasks = { ...localTasks };
     if (!updatedTasks[selectedDate]) updatedTasks[selectedDate] = [];
     
+    const generatedId = Date.now().toString();
+    const reminderTime = appSettings?.defaultReminderTime || '09:00';
+    const notificationId = await scheduleNotificationForDate(newTask.trim(), selectedDate, reminderTime);
+
     const newTaskObj = { 
-      id: Date.now().toString(), 
+      id: generatedId, 
       title: newTask.trim(),
       createdAt: new Date().toISOString(),
       completed: false,
-      fromCalendar: true
+      fromCalendar: true,
+      dateCreated: selectedDate,
+      reminderTime: reminderTime,
+      notificationId: notificationId,
     };
     
     updatedTasks[selectedDate].push(newTaskObj);
@@ -123,8 +165,6 @@ export default function CalendarViewScreen({ navigation, tasks: mainTasks, setTa
     if (selectedDate === today && setMainTasks) {
       const mainTaskObj = {
         ...newTaskObj,
-        dateCreated: selectedDate,
-        reminderTime: appSettings?.defaultReminderTime || '09:00'
       };
       setMainTasks(prev => [...prev, mainTaskObj]);
     }
@@ -134,7 +174,11 @@ export default function CalendarViewScreen({ navigation, tasks: mainTasks, setTa
 
   const deleteTask = async (date, id) => {
     const updatedTasks = { ...localTasks };
-    updatedTasks[date] = updatedTasks[date].filter(task => task.id !== id);
+    const taskToDelete = (updatedTasks[date] || []).find(task => task.id === id);
+    if (taskToDelete?.notificationId) {
+      await cancelNotificationIfAny(taskToDelete.notificationId);
+    }
+    updatedTasks[date] = (updatedTasks[date] || []).filter(task => task.id !== id);
     
     if (updatedTasks[date].length === 0) {
       delete updatedTasks[date];
@@ -156,6 +200,10 @@ export default function CalendarViewScreen({ navigation, tasks: mainTasks, setTa
       const task = updatedTasks[date][taskIndex];
       const isCompleted = !task.completed;
       
+      if (isCompleted && task.notificationId) {
+        await cancelNotificationIfAny(task.notificationId);
+      }
+
       updatedTasks[date][taskIndex] = {
         ...task,
         completed: isCompleted

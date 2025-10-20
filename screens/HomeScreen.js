@@ -23,14 +23,7 @@ import { AntDesign } from "@expo/vector-icons";
 const { width: screenWidth } = Dimensions.get('window');
 const SIDEBAR_WIDTH = screenWidth * 0.75;
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Global handler moved to App.js
 
 export default function HomeScreen({ 
   navigation, 
@@ -100,14 +93,19 @@ export default function HomeScreen({
         return;
       }
       
-      setNotificationsEnabled(true);
+      // Respect app settings toggle as well
+      if (appSettings?.notifications === false) {
+        setNotificationsEnabled(false);
+      } else {
+        setNotificationsEnabled(true);
+      }
     } else {
       Alert.alert('Notifications not supported on simulator');
     }
   };
 
   const scheduleNotification = async (taskTitle, taskDate, taskTime = selectedTime) => {
-    if (!notificationsEnabled) return null;
+    if (!notificationsEnabled || appSettings?.notifications === false) return null;
 
     try {
       // Parse the date and time
@@ -125,7 +123,7 @@ export default function HomeScreen({
         content: {
           title: "📋 Task Reminder",
           body: `Don't forget: ${taskTitle}`,
-          sound: true,
+          sound: appSettings?.soundEnabled !== false,
           priority: Notifications.AndroidImportance.HIGH,
         },
         trigger: {
